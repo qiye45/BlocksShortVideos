@@ -23,7 +23,7 @@
 2. 安装脚本
    - 点击油猴扩展图标
    - 选择"添加新脚本"
-   - 将脚本代码复制粘贴到编辑器中
+   - 将[脚本代码](https://raw.githubusercontent.com/qiye45/BlocksShortVideos/refs/heads/main/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E7%9F%AD%E8%A7%86%E9%A2%91%E5%B1%8F%E8%94%BD.js)复制粘贴到编辑器中 
    - 点击保存即可
 
 ## 使用方法
