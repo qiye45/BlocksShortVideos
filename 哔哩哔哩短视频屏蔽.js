@@ -13,7 +13,7 @@
 // @license      GPL-3.0 license
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     // 获取保存的设置或使用默认值
@@ -262,6 +262,9 @@
         live: 0,
         users: 0
     };
+// 添加全局变量来管理定时器
+    let counterHideTimer = null;
+    let lastUpdateTime = 0;
 
     // 检查当前页面是否需要启用屏蔽
     function shouldEnableOnCurrentPage() {
@@ -338,10 +341,10 @@
         if (!blockSettings.blockLive) return false;
 
         return element.classList.contains('bili-live-card') ||
-               element.querySelector('.live-card') ||
-               element.querySelector('.bili-live-card') ||
-               element.querySelector('[href*="/live/"]') ||
-               (element.textContent && element.textContent.includes('直播中'));
+            element.querySelector('.live-card') ||
+            element.querySelector('.bili-live-card') ||
+            element.querySelector('[href*="/live/"]') ||
+            (element.textContent && element.textContent.includes('直播中'));
     }
 
     // 检查是否为被屏蔽的UP主
@@ -606,7 +609,7 @@
 
     // 处理视频卡片
     function processVideoCard(videoCard) {
-        if (!videoCard) return { blocked: false, type: null };
+        if (!videoCard) return {blocked: false, type: null};
 
         // 重置计数
         let wasBlocked = false;
@@ -616,25 +619,25 @@
         videoCard.classList.remove('bilibli-short-video-blocked', 'bilibili-ad-blocked', 'bilibili-live-blocked', 'bilibili-user-blocked');
 
         if (isTemporarilyDisabled) {
-            return { blocked: false, type: null };
+            return {blocked: false, type: null};
         }
 
         // 检查是否为推广/广告内容
         if (isAdContent(videoCard)) {
             videoCard.classList.add('bilibili-ad-blocked');
-            return { blocked: true, type: 'ads' };
+            return {blocked: true, type: 'ads'};
         }
 
         // 检查是否为直播内容
         if (isLiveContent(videoCard)) {
             videoCard.classList.add('bilibili-live-blocked');
-            return { blocked: true, type: 'live' };
+            return {blocked: true, type: 'live'};
         }
 
         // 检查是否为被屏蔽的UP主
         if (isBlockedUser(videoCard)) {
             videoCard.classList.add('bilibili-user-blocked');
-            return { blocked: true, type: 'users' };
+            return {blocked: true, type: 'users'};
         }
 
         // 检查短视频（仅在启用短视频屏蔽时）
@@ -663,12 +666,12 @@
 
                 if (durationSeconds > 0 && durationSeconds < minDuration) {
                     videoCard.classList.add('bilibli-short-video-blocked');
-                    return { blocked: true, type: 'shortVideos' };
+                    return {blocked: true, type: 'shortVideos'};
                 }
             }
         }
 
-        return { blocked: false, type: null };
+        return {blocked: false, type: null};
     }
 
     // 视频卡片的选择器
@@ -721,11 +724,14 @@
         if (!shouldEnableOnCurrentPage()) {
             const oldCounter = document.getElementById('bili-short-video-counter');
             if (oldCounter) oldCounter.style.display = 'none';
-            const oldButton = document.getElementById('bili-short-video-float-button');
-            if (oldButton) oldButton.style.display = 'none';
             return;
         }
-
+        // 防抖：避免短时间内重复更新
+        const now = Date.now();
+        if (now - lastUpdateTime < 1000) { // 1秒内不重复更新
+            return;
+        }
+        lastUpdateTime = now;
         let counter = document.getElementById('bili-short-video-counter');
 
         if (!counter) {
@@ -772,9 +778,15 @@
         counter.style.display = 'block';
         createFloatButton();
 
-        // 5秒后自动隐藏计数器
-        setTimeout(() => {
-            counter.style.display = 'none';
+        // 清除之前的定时器，设置新的自动隐藏
+        if (counterHideTimer) {
+            clearTimeout(counterHideTimer);
+        }
+        counterHideTimer = setTimeout(() => {
+            if (counter) {
+                counter.style.display = 'none';
+            }
+            counterHideTimer = null;
         }, 5000);
     }
 
@@ -793,25 +805,31 @@
                 if (counter) {
                     counter.style.display = 'block';
 
-                    // 5秒后自动隐藏
-                    setTimeout(() => {
-                        counter.style.display = 'none';
+                    // 清除之前的定时器，设置新的自动隐藏
+                    if (counterHideTimer) {
+                        clearTimeout(counterHideTimer);
+                    }
+                    counterHideTimer = setTimeout(() => {
+                        if (counter) {
+                            counter.style.display = 'none';
+                        }
+                        counterHideTimer = null;
                     }, 5000);
+                    document.body.appendChild(floatButton);
                 }
-            });
-            document.body.appendChild(floatButton);
-        }
 
-        // 如果当前页面不启用，隐藏按钮
-        if (!shouldEnableOnCurrentPage()) {
-            floatButton.style.display = 'none';
-            return;
-        } else {
-            floatButton.style.display = 'block';
-        }
+                // 如果当前页面不启用，隐藏按钮
+                if (!shouldEnableOnCurrentPage()) {
+                    floatButton.style.display = 'none';
+                    return;
+                } else {
+                    floatButton.style.display = 'block';
+                }
 
-        // 更新文本
-        floatButton.textContent = isTemporarilyDisabled ? '🔴 短视频过滤已暂停' : '🟢 短视频过滤器';
+                // 更新文本
+                floatButton.textContent = isTemporarilyDisabled ? '🔴 短视频过滤已暂停' : '🟢 短视频过滤器';
+            })
+        }
     }
 
     // 监视DOM变化，处理动态加载的内容
@@ -831,7 +849,7 @@
                 clearTimeout(window.biliShortVideoTimer);
                 window.biliShortVideoTimer = setTimeout(() => {
                     processVideos();
-                }, 200);
+                }, 500); // 增加到500ms，减少频繁触发
             }
         });
 
